@@ -65,11 +65,12 @@ if ($wheels) {
         & $py -3 -m pip --python $vpython install --no-index --find-links $wheelDir aimaligator
     }
 } else {
-    Write-Host "No local wheels found - installing from PyPI..."
-    & $vpython -m pip install aimaligator
+    # Cloning the repository: no wheels, so install from this source tree.
+    Write-Host "No local wheels found - installing from local source..."
+    & $vpython -m pip install $here
     if ($LASTEXITCODE -ne 0) {
         Write-Host "venv pip unavailable - using host pip instead"
-        & $py -3 -m pip --python $vpython install aimaligator
+        & $py -3 -m pip --python $vpython install $here
     }
 }
 if ($LASTEXITCODE -ne 0) { throw "Package installation failed." }

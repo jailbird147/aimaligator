@@ -7,7 +7,10 @@ actual removal.
 
 ## Installing on a machine
 
-From the folder containing `install.ps1` and the `dist\*.whl` wheels:
+**Easiest:** download `AIMaligator-<version>-windows.zip` from this repo's
+Releases page, unzip it, and run `install.ps1` from inside.
+
+Or from a clone of this repository:
 
 ```cmd
 powershell -ExecutionPolicy Bypass -File install.ps1
