@@ -1,0 +1,19 @@
+{
+  "watch_roots": [],
+  "process_markers": ["lmstudio", "jan.exe", "\\jan\\", "ollama"],
+  "suspicious_children": [
+    "certutil", "bitsadmin", "mshta", "wscript", "cscript",
+    "rundll32", "regsvr32", "schtasks", "curl", "wget", "nc", "ncat"
+  ],
+  "child_policy": "suspicious-only",
+  "allowed_children": [
+    "conhost", "cmd", "powershell", "pwsh", "openconsole",
+    "node", "python", "pythonw", "ollama", "ollama app",
+    "ollama_llama_server", "llama-server", "llamacpp", "lmlink-connector"
+  ],
+  "egress_watch": true,
+  "scan_command": "defender",
+  "max_hash_bytes": 5242880,
+  "interval_seconds": 300,
+  "state_dir": "state"
+}

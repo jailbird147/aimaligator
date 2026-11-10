@@ -1,0 +1,12 @@
+# Personal / machine-specific — never commit
+config.json
+state/
+.venv/
+_tmp/
+dist/
+build/
+__pycache__/
+*.pyc
+*.egg-info/
+probe_*.py
+*_tmp.ps1
