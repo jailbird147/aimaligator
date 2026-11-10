@@ -5,6 +5,42 @@ delete, quarantine or fix anything — it watches, logs, and tells you, giving
 you the exact path of anything suspicious. Your antivirus stays in charge of
 actual removal.
 
+## Why this exists
+
+It started with a simple question: *how would we even know if the AI
+assistant itself got compromised?* An agent that can browse the web,
+download files and drive other apps is a tempting target - and a plain
+antivirus has no idea what "normal" behaviour for an AI assistant looks
+like. So we built a small, deliberately dumb sentinel that knows exactly
+what normal is: a fingerprint of every file, program and network endpoint
+the AI stack touches, and one rule - never act, only alert.
+
+## Alternatives
+
+There is a growing ecosystem, though none of these does quite the same job:
+
+- **AgentSeal** (`agentseal`) - closest match. Scans skill files and MCP
+  configs offline, and its `shield` mode watches agent config files in real
+  time. Smarter than AIMaligator about file *contents* (it analyses skill
+  text for prompt-injection patterns), but focused on coding agents and
+  their MCP configs - it does not watch model weights, AI app settings,
+  process children or network egress, and its shield mode auto-quarantines
+  (AIMaligator deliberately never acts).
+- **Snyk Agent Scan** (formerly `mcp-scan`), **Cisco MCP Scanner**,
+  **MCP-Shield**, **NVIDIA SkillSpector** - strong on MCP servers and agent
+  skills (prompt injection, tool poisoning). Several want API keys or cloud
+  accounts; none watch model files or general app behaviour.
+- **local-llm-configuration-auditor** - checks whether local AI servers are
+  exposed/misconfigured on your network. A useful complement: AIMaligator
+  watches changes, this audits setup.
+- **Wazuh, Tripwire, AIDE** - classic file-integrity monitoring. Powerful but
+  heavyweight, server-oriented, and they know nothing about AI apps - you
+  would have to hand-craft every rule AIMaligator detects by default.
+
+AIMaligator's niche: tiny, offline, no accounts, no API keys, Windows-simple,
+and specifically knows the local AI stack (models, skills, settings,
+processes, egress) while staying strictly alert-only.
+
 ## Installing on a machine
 
 **Easiest:** download `AIMaligator-<version>-windows.zip` from this repo's
