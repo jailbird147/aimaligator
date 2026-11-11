@@ -172,16 +172,23 @@ replace it. It never removes, quarantines or repairs anything itself.
 The only place a specific product is named is `scan_command` in the config,
 which controls what happens when you answer "no" to an alert:
 
-- `"defender"` (default) — launch a Windows Defender scan of the path
+- `"defender"` (default) — launch a Windows Defender scan of the path.
+  **Note:** when a third-party antivirus is registered, Windows disables
+  Defender entirely — in that case the escalation honestly reports it
+  instead of pretending to scan.
 - `"none"` — just alert; you copy the path into your own scanner
-- any other string — a command template containing `{path}`, e.g.
-  `"C:\Program Files\YourAV\scanner.exe" /quick "{path}"`
-
-Everything else (watching, alerting, logging, toasts) is product-neutral.
+- any other string — a command template containing `{path}`. Real example
+  from an Avast machine:
+  `"C:\Program Files\Avast Software\Avast\ashQuick.exe" "{path}"`
 Note for dual-AV setups: two real-time engines can interfere with each other
 and with scripts; see Troubleshooting for a real example.
 
 ## Tuning
+
+`config.json` holds everything: watch roots, the allowed/suspicious program
+lists, `exclude_globs` (files that never get watched - defaults skip
+`__pycache__`, `egg-info` and `.pyc` build junk), the scan command and the
+every-5-minutes interval.
 
 All paths and the suspicious-program list live in `config.json` next to this
 file. If alerts get noisy (e.g. LM Studio legitimately launches something

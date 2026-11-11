@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,7 @@ class Config:
     allowed_children: frozenset[str] = frozenset()
     egress_watch: bool = True
     scan_command: str = "defender"  # "defender" | "none" | custom template
+    exclude_globs: tuple[str, ...] = ()
 
 
 def empty_config(config_path: Path) -> Config:
@@ -76,4 +78,5 @@ def load_config(path: Path | None = None) -> Config:
         ),
         egress_watch=bool(raw.get("egress_watch", True)),
         scan_command=raw.get("scan_command", "defender"),
+        exclude_globs=tuple(raw.get("exclude_globs", ())),
     )

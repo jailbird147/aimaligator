@@ -13,6 +13,7 @@
   ],
   "egress_watch": true,
   "scan_command": "defender",
+  "exclude_globs": ["*__pycache__*", "*egg-info*", "*.pyc"],
   "max_hash_bytes": 5242880,
   "interval_seconds": 300,
   "state_dir": "state"

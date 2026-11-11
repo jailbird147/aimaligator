@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import difflib
 import datetime as _dt
+import fnmatch
 import hashlib
 import json
 import logging
@@ -87,6 +88,9 @@ def scan_roots(cfg: Config) -> dict[str, str]:
                 continue
             if cfg.state_dir in candidate.parents:
                 continue  # never track our own baseline/alert files
+            lowered = str(candidate).lower()
+            if any(fnmatch.fnmatch(lowered, g.lower()) for g in cfg.exclude_globs):
+                continue
             digest = fingerprint_of(candidate, cfg.max_hash_bytes)
             if digest is not None:
                 hashes[str(candidate)] = digest

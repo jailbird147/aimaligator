@@ -46,6 +46,19 @@ def defender_template() -> str | None:
     return f'"{exe}" -Scan -ScanType 3 -File "{{path}}"'
 
 
+def _defender_service_running() -> bool:
+    """When a third-party antivirus is registered, Windows stops Defender.
+    MpCmdRun then cannot scan - say so instead of pretending to launch."""
+    try:
+        result = subprocess.run(
+            ["sc", "query", "WinDefend"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        return "RUNNING" in result.stdout
+    except OSError:
+        return True  # cannot check - let the attempt happen anyway
+
+
 def _run_template(template: str, path: str, use_shell: bool) -> int | None:
     """Run one scan command. Returns the pid, or None when it could not start."""
     try:
@@ -90,6 +103,12 @@ def launch_scan(cfg, paths: list[str]) -> list[tuple[str, str]]:
         if resolved is None:
             return [
                 (p, "Windows Defender scanner not found - handle manually")
+                for p in paths
+            ]
+        if not _defender_service_running():
+            return [
+                (p, "Windows Defender is disabled (third-party antivirus "
+                    "registered) - handle manually or set scan_command")
                 for p in paths
             ]
         template, use_shell = resolved, False
