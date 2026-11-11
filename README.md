@@ -88,6 +88,19 @@ first baseline. Pass `-InstallDir <path>` to install somewhere else.
 - Written to `state/alerts.log` — one line per event:
   `2026-11-10 14:02:11 | changed-file | C:\...\SKILL.md | File contents changed`
 
+**Seeing exactly what changed:** for every changed or removed text file, the
+watchdog keeps the old version and writes a unified diff to
+`state/changed-backups/<timestamp>/`. Run this to read the most recent one:
+
+```cmd
+aimaligator --diff
+```
+
+That turns "y or n?" into an informed decision: if the diff adds suspicious
+instructions to a skill file, say no; if it is your own edit, say yes.
+(Backup copies accumulate - clean `state\changed-backups\` occasionally.
+Note: changes made before a watchdog upgrade cannot be diffed retroactively.)
+
 ## Running it
 
 ```cmd

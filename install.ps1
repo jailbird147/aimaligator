@@ -97,3 +97,6 @@ Pop-Location
 Write-Host ""
 Write-Host "AIMaligator is installed. Check anytime with:"
 Write-Host "  $venv\Scripts\aimaligator.exe --once"
+
+# temp line to verify --diff
+# temp line 2 to verify --diff

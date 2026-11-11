@@ -114,6 +114,106 @@ def test_key_files_use_stat_fingerprint_not_content(tmp_path, monkeypatch):
     assert fingerprint.startswith("stat:")
 
 
+def test_changed_file_backs_up_old_and_diff(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    target = root / "SKILL.md"
+    target.write_text("line1\nline2\n", encoding="utf-8")
+    cfg = make_config([root], tmp_path / "state")
+    fingerprints.check(cfg)
+
+    target.write_text("line1\nEVIL INSTRUCTION\n", encoding="utf-8")
+    alerts = fingerprints.check(cfg)
+    changed = [a for a in alerts if a.kind == "changed-file"]
+
+    assert changed and "diff saved" in changed[0].detail
+    backup_root = tmp_path / "state" / "changed-backups"
+    diffs = list(backup_root.rglob("*.diff"))
+    assert len(diffs) == 1
+    text = diffs[0].read_text(encoding="utf-8")
+    assert "EVIL INSTRUCTION" in text and "SKILL.md" in text
+    olds = list(backup_root.rglob("old-*"))
+    assert b"line2" in olds[0].read_bytes()
+
+
+def test_repeat_alerts_do_not_spam_backups(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    target = root / "SKILL.md"
+    target.write_text("v1", encoding="utf-8")
+    cfg = make_config([root], tmp_path / "state")
+    fingerprints.check(cfg)
+
+    target.write_text("v2", encoding="utf-8")
+    first = fingerprints.check(cfg)
+    second = fingerprints.check(cfg)
+
+    first_changed = [a for a in first if a.kind == "changed-file"]
+    second_changed = [a for a in second if a.kind == "changed-file"]
+    assert "diff saved" in first_changed[0].detail
+    assert "diff saved" not in second_changed[0].detail
+    backup_root = tmp_path / "state" / "changed-backups"
+    assert len(list(backup_root.iterdir())) == 1
+
+
+def test_accept_resets_backup_memory(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    target = root / "SKILL.md"
+    target.write_text("v1", encoding="utf-8")
+    cfg = make_config([root], tmp_path / "state")
+    fingerprints.check(cfg)
+
+    target.write_text("v2", encoding="utf-8")
+    fingerprints.check(cfg)          # backed up once
+    fingerprints.accept_current(cfg)  # user accepts
+    assert fingerprints.check(cfg) == []
+
+    target.write_text("v3 - again", encoding="utf-8")
+    alerts = fingerprints.check(cfg)
+    changed = [a for a in alerts if a.kind == "changed-file"]
+
+    assert changed and "diff saved" in changed[0].detail
+    diffs = list((tmp_path / "state" / "changed-backups").rglob("*.diff"))
+    assert len(diffs) == 2
+    assert "v3" in diffs[-1].read_text(encoding="utf-8")
+
+
+def test_removed_file_backs_up_old_content(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    target = root / "SKILL.md"
+    target.write_text("precious", encoding="utf-8")
+    cfg = make_config([root], tmp_path / "state")
+    fingerprints.check(cfg)
+
+    target.unlink()
+    alerts = fingerprints.check(cfg)
+    removed = [a for a in alerts if a.kind == "removed-file"]
+
+    assert removed and "old copy saved" in removed[0].detail
+    olds = list((tmp_path / "state" / "changed-backups").rglob("old-removed-*"))
+    assert olds and olds[0].read_bytes() == b"precious"
+
+
+def test_binary_change_gets_copies_but_no_diff(tmp_path):
+    root = tmp_path / "skills"
+    root.mkdir()
+    target = root / "blob.bin"
+    target.write_bytes(b"\x00\x01\x02")
+    cfg = make_config([root], tmp_path / "state")
+    fingerprints.check(cfg)
+
+    target.write_bytes(b"\x00\x09\x09")
+    alerts = fingerprints.check(cfg)
+    changed = [a for a in alerts if a.kind == "changed-file"]
+
+    assert changed and "binary change" in changed[0].detail
+    backup_root = tmp_path / "state" / "changed-backups"
+    assert list(backup_root.rglob("*.diff")) == []
+    assert list(backup_root.rglob("old-*")) and list(backup_root.rglob("new-*"))
+
+
 def test_watch_root_can_be_a_single_file(tmp_path):
     settings = tmp_path / "settings.json"
     settings.write_text("{}", encoding="utf-8")

@@ -1,6 +1,6 @@
 [project]
 name = "aimaligator"
-version = "0.3.0"
+version = "0.3.1"
 description = "Alert-only watchdog for local AI assistant tooling (Bionic / LM Studio)."
 requires-python = ">=3.10"
 dependencies = ["psutil>=5.9"]

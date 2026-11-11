@@ -108,6 +108,37 @@ def resolve_with_user(cfg: Config, found: list[Alert], config_path: Path | None 
         print(note.as_line(), flush=True)
 
 
+def print_diffs(cfg: Config, filter_str: str) -> None:
+    """Show the diffs from the most recent change-backup folder."""
+    root = cfg.state_dir / fingerprints.BACKUP_DIR_NAME
+    if not root.is_dir():
+        print("No change backups recorded yet - use --diff again after a "
+              "changed-file alert.")
+        return
+    stamps = sorted(d.name for d in root.iterdir() if d.is_dir())
+    if not stamps:
+        print("No change backups recorded yet.")
+        return
+    latest = stamps[-1]
+    print(f"Most recent change backup: {latest}")
+    diff_files = sorted((root / latest).glob("*.diff"))
+    matches = [d for d in diff_files if filter_str.lower() in d.name.lower()]
+    if not matches:
+        if diff_files:
+            print("Diffs present but none match the filter:")
+            for d in diff_files:
+                print(f"  {d.name}")
+        else:
+            print("  (latest backup has no text diffs - binary changes only)")
+        return
+    for d in matches:
+        print("-" * 60)
+        try:
+            print(d.read_text(encoding="utf-8"))
+        except OSError as err:
+            print(f"  cannot read {d.name}: {err}")
+
+
 def _default_config_path() -> Path:
     """Config lives in the working directory; fall back to the dev layout.
 
@@ -219,10 +250,18 @@ def main(argv: list[str] | None = None) -> int:
                              "add them to the config and take a baseline")
     parser.add_argument("--yes", action="store_true",
                         help="With --init: apply without asking")
+    parser.add_argument("--diff", nargs="?", const="", default=None,
+                        help="Show what changed in the most recent "
+                             "changed-file backup (optional path filter)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
 
     _setup_logging(args.verbose)
+
+    if args.diff is not None:
+        cfg = load_config(args.config)
+        print_diffs(cfg, args.diff)
+        return 0
 
     if args.init:
         # --init may create the config itself (fresh installs).
