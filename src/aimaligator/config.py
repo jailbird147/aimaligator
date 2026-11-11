@@ -63,7 +63,7 @@ def load_config(path: Path | None = None) -> Config:
 
     return Config(
         watch_roots=tuple(Path(p) for p in raw["watch_roots"]),
-        process_markers=tuple(m.lower() for m in raw["process_markers"]),
+        process_markers=tuple(m.lower() for m in raw.get("process_markers", ())),
         suspicious_children=frozenset(
             n.lower().removesuffix(".exe") for n in raw.get("suspicious_children", ())
         ),

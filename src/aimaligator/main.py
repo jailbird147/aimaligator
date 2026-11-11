@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import logging
 import sys
@@ -15,6 +16,22 @@ from .alerts import Alert
 from .config import Config, DEFAULT_CONFIG_NAME, empty_config, load_config
 
 logger = logging.getLogger("aimaligator")
+
+
+HEARTBEAT_NAME = "checks.log"
+
+
+def log_heartbeat(cfg: Config, found: list[Alert]) -> None:
+    """Record that a check ran, so gaps in this file expose a silenced watchdog."""
+    try:
+        cfg.state_dir.mkdir(parents=True, exist_ok=True)
+        line = "{:%Y-%m-%d %H:%M:%S} | check ok | alerts={}\n".format(
+            _dt.datetime.now(), len(found)
+        )
+        with (cfg.state_dir / HEARTBEAT_NAME).open("a", encoding="utf-8") as fh:
+            fh.write(line)
+    except OSError as err:
+        logger.debug("Heartbeat write failed: %s", err)
 
 
 def run_once(cfg: Config) -> list[Alert]:
@@ -275,12 +292,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.rebaseline:
         count = fingerprints.accept_current(cfg)
+        # Make every baseline reset LOUD in the alerts log - it is exactly
+        # the command an infected agent would run to whitewash tampering.
+        alerts_mod.append_alerts(cfg.state_dir, [Alert(
+            "baseline-reset", str(cfg.state_dir / fingerprints.BASELINE_NAME),
+            f"Baseline accepted with {count} files - confirm this was you!",
+        )])
         logger.info("Baseline accepted: %s files marked as known-good", count)
         return 0
 
     found = run_once(cfg)
     handle(cfg, found)
     resolve_with_user(cfg, found, args.config)
+    log_heartbeat(cfg, found)
 
     if args.once:
         return 0
@@ -299,6 +323,7 @@ def main(argv: list[str] | None = None) -> int:
             found = run_once(cfg)
             handle(cfg, found)
             resolve_with_user(cfg, found, args.config)
+            log_heartbeat(cfg, found)
     except KeyboardInterrupt:
         logger.info("Stopped by user")
     return 0
