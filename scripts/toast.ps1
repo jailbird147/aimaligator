@@ -17,5 +17,13 @@ $textNodes = $template.GetElementsByTagName("text")
 $null = $textNodes.Item(0).AppendChild($template.CreateTextNode($Title))
 $null = $textNodes.Item(1).AppendChild($template.CreateTextNode($Body))
 
+# Silent mode: no notification sound (AIM_TOAST_SILENT=1).
+if ($env:AIM_TOAST_SILENT -eq "1") {
+    $toastElement = $template.GetElementsByTagName("toast").Item(0)
+    $audio = $template.CreateElement("audio")
+    $audio.SetAttribute("silent", "true")
+    $null = $toastElement.AppendChild($audio)
+}
+
 $toast = New-Object Windows.UI.Notifications.ToastNotification $template
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("AIMaligator").Show($toast)

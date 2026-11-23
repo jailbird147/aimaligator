@@ -47,23 +47,92 @@ def run_once(cfg: Config) -> list[Alert]:
     return found
 
 
-def handle(cfg: Config, found: list[Alert]) -> None:
-    """Log every alert, write them to the alerts log, and toast the user."""
+AUTO_SCAN_KINDS = {"changed-file", "removed-file", "suspicious-child", "new-file"}
+AUTO_SCANNED_NAME = "auto-scanned.json"
+
+
+def _load_auto_scanned(cfg: Config) -> dict[str, str]:
+    path = cfg.state_dir / AUTO_SCANNED_NAME
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_auto_scanned(cfg: Config, store: dict[str, str]) -> None:
+    cfg.state_dir.mkdir(parents=True, exist_ok=True)
+    (cfg.state_dir / AUTO_SCANNED_NAME).write_text(
+        json.dumps(store, indent=1), encoding="utf-8"
+    )
+
+
+def _auto_scan_candidates(cfg: Config, found: list[Alert]) -> list[str]:
+    """Pick paths worth scanning, skipping things already scanned in their
+    current state (an unaccepted change is scanned once, not every cycle)."""
+    store = _load_auto_scanned(cfg)
+    now = _dt.datetime.now().isoformat(timespec="seconds")
+    scannable: list[str] = []
+    for alert in found:
+        if alert.kind not in AUTO_SCAN_KINDS or not Path(alert.path).exists():
+            continue
+        if alert.kind == "suspicious-child":
+            key = f"child|{alert.path.lower()}"
+        else:
+            try:
+                st = Path(alert.path).stat()
+            except OSError:
+                continue
+            key = f"file|{alert.path}|{st.st_size}:{st.st_mtime_ns}"
+        if key in store:
+            continue
+        store[key] = now
+        scannable.append(alert.path)
+    if scannable:
+        _save_auto_scanned(cfg, store)
+    return scannable
+
+
+def handle(cfg: Config, found: list[Alert]) -> set[str]:
+    """Log every alert, write them to the alerts log, and toast the user.
+
+    With ``auto_scan`` enabled, suspicious paths are handed to the configured
+    antivirus automatically - accepting them into the baseline still requires
+    a human. Returns the set of paths a scan was launched for.
+    """
     for alert in found:
         logger.warning("%s | %s", alert.kind, alert.path)
 
     if not found:
-        return
+        return set()
 
     log_path = alerts_mod.append_alerts(cfg.state_dir, found)
+
+    scanned: set[str] = set()
+    auto_note = ""
+    if cfg.auto_scan:
+        scannable = _auto_scan_candidates(cfg, found)
+        if scannable:
+            results = escalation.launch_scan(cfg, scannable)
+            notes = [Alert("auto-escalated", p, status) for p, status in results]
+            alerts_mod.append_alerts(cfg.state_dir, notes)
+            for a in notes:
+                logger.warning("%s | %s", a.kind, a.path)
+            scanned = {p for p, _ in results}
+            started = sum(1 for _, s in results if "pid" in s)
+            auto_note = f" Scans launched: {started}/{len(results)}."
+
     title = f"AIMaligator: {len(found)} alert(s)"
     body = "; ".join(f"{a.kind}: {a.path}" for a in found[:3])
     if len(found) > 3:
         body += f" ... see {log_path}"
-    alerts_mod.send_toast(title, body)
+    body += auto_note
+    alerts_mod.send_toast(title, body, silent=cfg.silent_notifications)
     print(f"ALERTS written to {log_path}")
     for alert in found:
         print(alert.as_line())
+    return scanned
 
 
 def _is_interactive() -> bool:
@@ -74,8 +143,12 @@ def _is_interactive() -> bool:
         return False
 
 
-def resolve_with_user(cfg: Config, found: list[Alert], config_path: Path | None = None) -> None:
+def resolve_with_user(cfg: Config, found: list[Alert], config_path: Path | None = None,
+                      scanned: set[str] | None = None) -> None:
     """Ask 'was this you?' when a human is present.
+
+    ``scanned`` is the set of paths already auto-scanned this cycle; the 'no'
+    answer will not scan them a second time.
 
     yes -> the current file state becomes the new baseline (automatic
     rebaseline). no -> hand the paths to Windows Defender and keep the old
@@ -108,7 +181,8 @@ def resolve_with_user(cfg: Config, found: list[Alert], config_path: Path | None 
         return
 
     # 'no' (or anything else): escalate, do NOT touch the baseline.
-    scannable = [a.path for a in real if Path(a.path).exists()]
+    already = scanned or set()
+    scannable = [a.path for a in real if Path(a.path).exists() and a.path not in already]
     results = escalation.launch_scan(cfg, scannable)
     notes = [
         Alert("escalated", path, status)
@@ -302,8 +376,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     found = run_once(cfg)
-    handle(cfg, found)
-    resolve_with_user(cfg, found, args.config)
+    scanned = handle(cfg, found)
+    resolve_with_user(cfg, found, args.config, scanned)
     log_heartbeat(cfg, found)
 
     if args.once:
@@ -321,8 +395,8 @@ def main(argv: list[str] | None = None) -> int:
             except (OSError, KeyError, ValueError) as err:
                 logger.error("Config reload failed, keeping previous: %s", err)
             found = run_once(cfg)
-            handle(cfg, found)
-            resolve_with_user(cfg, found, args.config)
+            scanned = handle(cfg, found)
+            resolve_with_user(cfg, found, args.config, scanned)
             log_heartbeat(cfg, found)
     except KeyboardInterrupt:
         logger.info("Stopped by user")

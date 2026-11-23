@@ -41,19 +41,28 @@ def append_alerts(state_dir: Path, alerts: list[Alert]) -> Path:
     return log_path
 
 
-def send_toast(title: str, body: str) -> bool:
-    """Show a Windows toast notification. Returns True on success."""
+def send_toast(title: str, body: str, silent: bool = False) -> bool:
+    """Show a Windows toast notification. Returns True on success.
+
+    ``silent`` suppresses the notification sound (visual-only toast).
+    """
     script = Path(__file__).resolve().parents[2] / "scripts" / TOAST_SCRIPT_NAME
     if not script.is_file():
         logger.warning("Toast script missing: %s", script)
         return False
+    env = {
+        **os.environ,
+        "AIM_TOAST_TITLE": title,
+        "AIM_TOAST_BODY": body,
+        "AIM_TOAST_SILENT": "1" if silent else "0",
+    }
     try:
         result = subprocess.run(
             [
                 "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", str(script),
             ],
-            env={**os.environ, "AIM_TOAST_TITLE": title, "AIM_TOAST_BODY": body},
+            env=env,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,

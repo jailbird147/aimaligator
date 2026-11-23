@@ -84,6 +84,14 @@ first baseline. Pass `-InstallDir <path>` to install somewhere else.
 
 ## Alerts
 
+Two quality-of-life switches in `config.json`:
+
+- `"silent_notifications": true` — toasts appear without sound
+- `"auto_scan": true` — suspicious paths are handed to your antivirus
+  automatically, without waiting for you to answer. Each version of a file
+  is scanned once; accepting changes into the baseline still needs a human
+  (the y/n prompt in interactive runs, or `--rebaseline`).
+
 - Popup notification on your desktop (Windows toast)
 - Written to `state/alerts.log` — one line per event:
   `2026-11-10 14:02:11 | changed-file | C:\...\SKILL.md | File contents changed`

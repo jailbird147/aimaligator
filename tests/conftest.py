@@ -12,6 +12,9 @@ def make_config(
     state_dir: Path,
     child_policy: str = "suspicious-only",
     allowed_children: set[str] | None = None,
+    auto_scan: bool = False,
+    scan_command: str = "defender",
+    silent_notifications: bool = False,
 ) -> Config:
     return Config(
         watch_roots=tuple(watch_roots),
@@ -22,4 +25,7 @@ def make_config(
         state_dir=state_dir,
         child_policy=child_policy,
         allowed_children=frozenset(allowed_children or set()),
+        auto_scan=auto_scan,
+        scan_command=scan_command,
+        silent_notifications=silent_notifications,
     )

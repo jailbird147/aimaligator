@@ -36,6 +36,8 @@ class Config:
     egress_watch: bool = True
     scan_command: str = "defender"  # "defender" | "none" | custom template
     exclude_globs: tuple[str, ...] = ()
+    silent_notifications: bool = False
+    auto_scan: bool = False
 
 
 def empty_config(config_path: Path) -> Config:
@@ -79,4 +81,6 @@ def load_config(path: Path | None = None) -> Config:
         egress_watch=bool(raw.get("egress_watch", True)),
         scan_command=raw.get("scan_command", "defender"),
         exclude_globs=tuple(raw.get("exclude_globs", ())),
+        silent_notifications=bool(raw.get("silent_notifications", False)),
+        auto_scan=bool(raw.get("auto_scan", False)),
     )

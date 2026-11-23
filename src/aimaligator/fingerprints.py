@@ -363,4 +363,7 @@ def accept_current(cfg: Config) -> int:
     backed_file = cfg.state_dir / BACKED_NAME
     if backed_file.exists():
         backed_file.unlink()
+    auto_file = cfg.state_dir / "auto-scanned.json"
+    if auto_file.exists():
+        auto_file.unlink()
     return len(current)
